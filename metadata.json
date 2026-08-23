@@ -1,0 +1,10 @@
+{
+  "name": "OSA SOUL STUDIO",
+  "description": "Emocjonalne studio muzyczne AI łączące tworzenie utworów, analizę muzyki, separację ścieżek, transkrypcję MIDI, szkołę produkcji muzycznej oraz osobistego producenta i realizatora dźwięku.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
