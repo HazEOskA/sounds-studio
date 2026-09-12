@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Navbar } from "./components/Navbar";
 import { MusicSchoolBar } from "./components/MusicSchoolBar";
 import { ProjectInitializer } from "./components/ProjectInitializer";
@@ -9,6 +9,7 @@ import { MusicGenerator } from "./components/MusicGenerator";
 import { MixMastering } from "./components/MixMastering";
 import { LoopLab } from "./components/LoopLab";
 import { AiProducerChat } from "./components/AiProducerChat";
+import { DawDev } from "./components/DawDev";
 
 import { AudioAnalysis, DspMetrics, StemTrack } from "./types";
 import {
@@ -38,7 +39,6 @@ export default function App() {
   const [isSchoolOpen, setIsSchoolOpen] = useState<boolean>(false);
   const [chatInitialQuery, setChatInitialQuery] = useState<string>("");
 
-  // Initialize demo audio synthesis on initial mount
   useEffect(() => {
     try {
       const demoBuffer = generateSyntheticTrackAudio("trap");
@@ -50,8 +50,7 @@ export default function App() {
       console.warn("Auto audio init deferred until user gesture", e);
     }
 
-    // Subscribe to playback progress
-    audioEngine.onPlaybackProgress((time, dur) => {
+    return audioEngine.onPlaybackProgress((time, dur) => {
       setCurrentTime(time);
       setDuration(dur);
       setIsPlaying(audioEngine.getIsPlaying());
@@ -74,7 +73,6 @@ export default function App() {
     setCurrentTime(time);
   };
 
-  // Handle uploaded audio file (WAV, MP3, FLAC, recorded voice)
   const handleLoadAudioFile = async (file: File) => {
     setIsProcessingFile(true);
     setTrackTitle(file.name.replace(/\.[^/.]+$/, ""));
@@ -88,22 +86,17 @@ export default function App() {
       audioEngine.loadAudioBuffer(audioBuffer);
       setDuration(audioBuffer.duration);
 
-      // Extract real waveform & DSP metrics
       const peaks = extractWaveformPeaks(audioBuffer, 250);
       setWaveformPoints(peaks);
 
       const dsp = analyzeAudioBufferDsp(audioBuffer);
       setDspMetrics(dsp);
 
-      // Trigger server-side Gemini AI song analysis
       setIsAnalyzing(true);
       const res = await fetch("/api/analyze-song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: file.name,
-          dspMetrics: dsp,
-        }),
+        body: JSON.stringify({ title: file.name, dspMetrics: dsp }),
       });
 
       if (res.ok) {
@@ -119,7 +112,6 @@ export default function App() {
     }
   };
 
-  // Handle Preset Selection (Trap, Neo-Soul, Cyberpunk)
   const handleSelectPreset = (style: "trap" | "neosoul" | "cyberpunk") => {
     const titles = {
       trap: "OSA - Nocny Rejs (Dark Trap 808)",
@@ -130,16 +122,16 @@ export default function App() {
     const buffer = generateSyntheticTrackAudio(style);
     audioEngine.loadAudioBuffer(buffer);
     setDuration(buffer.duration);
-    const peaks = extractWaveformPeaks(buffer, 250);
-    setWaveformPoints(peaks);
-    const dsp = analyzeAudioBufferDsp(buffer);
-    setDspMetrics(dsp);
+    setWaveformPoints(extractWaveformPeaks(buffer, 250));
+    setDspMetrics(analyzeAudioBufferDsp(buffer));
   };
 
   const handleAskAboutTimestamp = (time: number, sectionName?: string) => {
+    const minute = Math.floor(time / 60);
+    const second = Math.floor(time % 60).toString().padStart(2, "0");
     const query = sectionName
-      ? `Zwróć uwagę na sekcję '${sectionName}' w minucie ${Math.floor(time / 60)}:${Math.floor(time % 60) < 10 ? "0" : ""}${Math.floor(time % 60)}. Jakie elementy miksu lub harmonii warto tu poprawić?`
-      : `Sprawdź moment ${Math.floor(time / 60)}:${Math.floor(time % 60) < 10 ? "0" : ""}${Math.floor(time % 60)}. Co sądzisz o dynamice i przestrzeni w tej sekundzie utworu?`;
+      ? `Zwróć uwagę na sekcję '${sectionName}' w minucie ${minute}:${second}. Jakie elementy miksu lub harmonii warto tu poprawić?`
+      : `Sprawdź moment ${minute}:${second}. Co sądzisz o dynamice i przestrzeni w tej sekundzie utworu?`;
     setChatInitialQuery(query);
     setIsChatOpen(true);
   };
@@ -151,10 +143,7 @@ export default function App() {
       const res = await fetch("/api/analyze-song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: trackTitle,
-          dspMetrics,
-        }),
+        body: JSON.stringify({ title: trackTitle, dspMetrics }),
       });
       if (res.ok) {
         const aiAnalysis: AudioAnalysis = await res.json();
@@ -169,7 +158,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a0b0f] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
-      {/* 1. Global Navigation Bar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -187,7 +175,6 @@ export default function App() {
         setIsSchoolOpen={setIsSchoolOpen}
       />
 
-      {/* 2. Top Permanent Music School Bar */}
       <MusicSchoolBar
         isOpen={isSchoolOpen}
         onClose={() => setIsSchoolOpen(false)}
@@ -195,9 +182,7 @@ export default function App() {
         trackTitle={trackTitle}
       />
 
-      {/* 3. Main Workspace Canvas */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 space-y-6">
-        {/* Project Initializer Gateway (Visible in Lab and generator for easy switching) */}
         {activeTab === "lab" && (
           <ProjectInitializer
             onLoadAudioFile={handleLoadAudioFile}
@@ -207,7 +192,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 1: Laboratorium Utworu */}
         {activeTab === "lab" && (
           <TrackLab
             waveformPoints={waveformPoints}
@@ -225,7 +209,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 2: Stem Splitter */}
         {activeTab === "stems" && (
           <StemSplitter
             stems={stems}
@@ -236,7 +219,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 3: MIDI Lab */}
         {activeTab === "midi" && (
           <MidiLab
             bpm={dspMetrics?.bpm || analysis?.estimatedBpm || 138}
@@ -245,12 +227,8 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Generator Muzyki */}
-        {activeTab === "generator" && (
-          <MusicGenerator />
-        )}
+        {activeTab === "generator" && <MusicGenerator />}
 
-        {/* Tab 5: Mix i Mastering */}
         {activeTab === "mix" && (
           <MixMastering
             trackTitle={trackTitle}
@@ -261,16 +239,16 @@ export default function App() {
           />
         )}
 
-        {/* Tab 6: Loop Lab */}
         {activeTab === "loop" && (
           <LoopLab
             bpm={dspMetrics?.bpm || analysis?.estimatedBpm || 138}
             trackTitle={trackTitle}
           />
         )}
+
+        {activeTab === "daw" && <DawDev />}
       </main>
 
-      {/* 4. Dockable AI Producer & Audio Engineer Chat */}
       <AiProducerChat
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}

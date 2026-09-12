@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Activity,
   Sliders,
@@ -12,9 +12,7 @@ import {
   RotateCcw,
   Zap,
   GraduationCap,
-  MessageSquare,
   Radio,
-  Share2,
 } from "lucide-react";
 import { audioEngine } from "../utils/audioEngine";
 
@@ -43,7 +41,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTime,
   duration,
   onSeek,
-  trackTitle,
   bpm,
   detectedKey,
   isChatOpen,
@@ -85,13 +82,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: "generator", label: "Generator Emocji", icon: Sparkles },
     { id: "mix", label: "Mix & Master", icon: Sliders },
     { id: "loop", label: "Loop Lab", icon: Radio },
+    { id: "daw", label: "DAW DEV", icon: Zap, badge: "DEV" },
   ];
 
   return (
     <header className="sticky top-0 z-40 bg-[#111114] border-b border-[#222226] text-gray-200">
-      {/* Top Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Brand & Immersive Studio Logo */}
         <div className="flex items-center gap-3">
           <div
             className="flex items-center gap-2.5 cursor-pointer group"
@@ -111,69 +107,69 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Global Transport Pill (Center) */}
-        <div className="hidden lg:flex items-center gap-3 bg-[#16161A] border border-[#222226] px-4 py-1.5 rounded-full shadow-inner">
-          <button
-            id="global-play-pause-btn"
-            onClick={onPlayPause}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
-              isPlaying
-                ? "bg-[#FFB300] text-black shadow-[0_0_10px_rgba(255,179,0,0.5)]"
-                : "bg-zinc-800 text-[#FFB300] hover:bg-zinc-700"
-            }`}
-            title={isPlaying ? "Pauza" : "Odtwórz"}
-          >
-            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
-          </button>
-
-          <button
-            onClick={() => onSeek(0)}
-            className="p-1 text-zinc-400 hover:text-[#FFB300] transition"
-            title="Od początku"
-          >
-            <RotateCcw className="w-3 h-3" />
-          </button>
-
-          <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-300 min-w-[75px]">
-            <span className="text-[#FFB300] font-bold">{formatTime(currentTime)}</span>
-            <span className="text-zinc-600">/</span>
-            <span className="text-zinc-400">{formatTime(duration)}</span>
-          </div>
-
-          <div className="h-3.5 w-px bg-zinc-800" />
-
-          <div className="flex items-center gap-2 text-[11px] font-mono opacity-80">
-            <span className="text-zinc-400">
-              BPM: <strong className="text-zinc-200">{bpm}</strong>
-            </span>
-            <span className="text-zinc-400">
-              KEY: <strong className="text-[#FFB300]">{detectedKey}</strong>
-            </span>
-            <span className="text-zinc-400 hidden xl:inline">
-              LUFS: <strong className="text-green-400">-14.2</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Action Controls & Toggles */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Master Volume */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-[#16161A] border border-[#222226] px-2.5 py-1.5 rounded-lg">
-            <button onClick={toggleMute} className="text-zinc-400 hover:text-[#FFB300] transition">
-              {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        {activeTab !== "daw" && (
+          <div className="hidden lg:flex items-center gap-3 bg-[#16161A] border border-[#222226] px-4 py-1.5 rounded-full shadow-inner">
+            <button
+              id="global-play-pause-btn"
+              onClick={onPlayPause}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+                isPlaying
+                  ? "bg-[#FFB300] text-black shadow-[0_0_10px_rgba(255,179,0,0.5)]"
+                  : "bg-zinc-800 text-[#FFB300] hover:bg-zinc-700"
+              }`}
+              title={isPlaying ? "Pauza" : "Odtwórz"}
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
             </button>
-            <input
-              type="range"
-              min="0"
-              max="1.5"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-16 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#FFB300]"
-            />
-          </div>
 
-          {/* Music School Toggle */}
+            <button
+              onClick={() => onSeek(0)}
+              className="p-1 text-zinc-400 hover:text-[#FFB300] transition"
+              title="Od początku"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+
+            <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-300 min-w-[75px]">
+              <span className="text-[#FFB300] font-bold">{formatTime(currentTime)}</span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-zinc-400">{formatTime(duration)}</span>
+            </div>
+
+            <div className="h-3.5 w-px bg-zinc-800" />
+
+            <div className="flex items-center gap-2 text-[11px] font-mono opacity-80">
+              <span className="text-zinc-400">
+                BPM: <strong className="text-zinc-200">{bpm}</strong>
+              </span>
+              <span className="text-zinc-400">
+                KEY: <strong className="text-[#FFB300]">{detectedKey}</strong>
+              </span>
+              <span className="text-zinc-400 hidden xl:inline">
+                LUFS: <strong className="text-green-400">-14.2</strong>
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {activeTab !== "daw" && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#16161A] border border-[#222226] px-2.5 py-1.5 rounded-lg">
+              <button onClick={toggleMute} className="text-zinc-400 hover:text-[#FFB300] transition">
+                {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1.5"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-16 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#FFB300]"
+              />
+            </div>
+          )}
+
           <button
             id="toggle-school-btn"
             onClick={() => setIsSchoolOpen(!isSchoolOpen)}
@@ -187,7 +183,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden sm:inline">Szkoła</span>
           </button>
 
-          {/* AI Producer Chat Toggle */}
           <button
             id="toggle-producer-chat-btn"
             onClick={() => setIsChatOpen(!isChatOpen)}
@@ -203,7 +198,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Module Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-2 sm:px-6 flex items-center overflow-x-auto scrollbar-none border-t border-[#1A1A1E] py-1 gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -226,6 +220,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className={`text-[8px] px-1 py-0.2 rounded font-mono ${
                     item.badge === "LIVE"
                       ? "bg-[#FFB300] text-black font-bold"
+                      : item.badge === "DEV"
+                      ? "border border-purple-500 text-purple-300"
                       : "border border-green-500 text-green-400"
                   }`}
                 >
