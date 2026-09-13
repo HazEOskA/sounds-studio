@@ -82,6 +82,25 @@ class DawAudioEngine {
     this.syncMixer(project);
   }
 
+  public async triggerChannel(channelId: string, project?: DawProject) {
+    const targetProject = project || this.project;
+    if (!targetProject) return;
+
+    await this.init();
+    if (!this.ctx) return;
+
+    this.project = targetProject;
+    this.syncMixer(targetProject);
+
+    const channel = targetProject.channels.find((item) => item.id === channelId);
+    if (!channel) return;
+
+    const anySolo = targetProject.channels.some((item) => item.solo);
+    if (channel.mute || (anySolo && !channel.solo)) return;
+
+    this.scheduleSound(channel, this.ctx.currentTime + 0.01);
+  }
+
   public setMasterVolume(volume: number) {
     if (!this.ctx || !this.masterGain) return;
     this.masterGain.gain.setTargetAtTime(
