@@ -51,6 +51,9 @@ export const MusicGenerator: React.FC<MusicGeneratorProps> = ({ onLoadGeneratedT
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [isPlayingBriefAudio, setIsPlayingBriefAudio] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isGeneratingLyria, setIsGeneratingLyria] = useState<boolean>(false);
+  const [lyriaAudioUrl, setLyriaAudioUrl] = useState<string | null>(null);
+  const [lyriaError, setLyriaError] = useState<string | null>(null);
 
   const sliderConfigs: { key: keyof EmotionSliders; label: string; color: string; desc: string }[] = [
     { key: "darkness", label: "Mrok", color: "accent-amber-500", desc: "Ciężar harmoniczny, gęste basy, cienie" },
@@ -101,9 +104,58 @@ export const MusicGenerator: React.FC<MusicGeneratorProps> = ({ onLoadGeneratedT
 
   const handleCopyPrompt = () => {
     if (!generatedBrief) return;
-    navigator.clipboard.writeText(generatedBrief.aiMusicPrompt);
+    const prompt =
+      (generatedBrief as any).aiMusicPrompt ||
+      (generatedBrief as any).aiAudioPrompt ||
+      description;
+    navigator.clipboard.writeText(prompt);
     setCopiedPrompt(true);
     setTimeout(() => setCopiedPrompt(false), 2000);
+  };
+
+  const handleGenerateLyria = async () => {
+    if (!generatedBrief) return;
+
+    setIsGeneratingLyria(true);
+    setLyriaError(null);
+
+    try {
+      const prompt =
+        (generatedBrief as any).aiMusicPrompt ||
+        (generatedBrief as any).aiAudioPrompt ||
+        description;
+
+      const res = await fetch("/api/lyria-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, mode: "clip" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.audioBase64) {
+        throw new Error(data.error || data.message || `Błąd Lyria API: ${res.status}`);
+      }
+
+      const binary = atob(data.audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      if (lyriaAudioUrl) {
+        URL.revokeObjectURL(lyriaAudioUrl);
+      }
+
+      const blob = new Blob([bytes], { type: data.mimeType || "audio/mpeg" });
+      const nextUrl = URL.createObjectURL(blob);
+      setLyriaAudioUrl(nextUrl);
+    } catch (err: any) {
+      console.error("Błąd generowania Lyria:", err);
+      setLyriaError(err?.message || "Nie udało się wygenerować audio Lyria.");
+    } finally {
+      setIsGeneratingLyria(false);
+    }
   };
 
   const playBriefMoodAudio = () => {
@@ -334,18 +386,44 @@ export const MusicGenerator: React.FC<MusicGeneratorProps> = ({ onLoadGeneratedT
                     Prompt Audio dla Modeli AI (Suno / Lyria / AudioCraft)
                   </span>
 
-                  <button
-                    onClick={handleCopyPrompt}
-                    className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-bold uppercase transition flex items-center gap-1"
-                  >
-                    {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedPrompt ? "Skopiowano!" : "Kopiuj Prompt"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleGenerateLyria}
+                      disabled={isGeneratingLyria}
+                      className="px-2.5 py-1 bg-[#FFB300] hover:bg-[#ffbe1a] disabled:opacity-50 text-black rounded-lg text-[11px] font-bold uppercase transition flex items-center gap-1"
+                    >
+                      {isGeneratingLyria ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                      <span>{isGeneratingLyria ? "Lyria generuje..." : "Generuj Lyria 30s"}</span>
+                    </button>
+
+                    <button
+                      onClick={handleCopyPrompt}
+                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-bold uppercase transition flex items-center gap-1"
+                    >
+                      {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedPrompt ? "Skopiowano!" : "Kopiuj Prompt"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-xs font-mono text-zinc-200 bg-[#0A0A0C] p-3 rounded-lg border border-[#222226] leading-relaxed">
-                  {generatedBrief.aiMusicPrompt}
+                  {(generatedBrief as any).aiMusicPrompt || (generatedBrief as any).aiAudioPrompt || description}
                 </p>
+
+                {lyriaError && (
+                  <div className="text-[11px] text-red-300 bg-red-950/30 border border-red-500/30 rounded-lg p-2.5">
+                    {lyriaError}
+                  </div>
+                )}
+
+                {lyriaAudioUrl && (
+                  <div className="bg-[#0A0A0C] border border-[#FFB300]/30 rounded-lg p-3 space-y-2">
+                    <div className="text-[10px] uppercase tracking-wider font-bold text-[#FFB300]">
+                      Lyria 3 Clip · wynik 30 s
+                    </div>
+                    <audio controls src={lyriaAudioUrl} className="w-full" />
+                  </div>
+                )}
               </div>
 
               {/* Arrangement & Chord Table */}
