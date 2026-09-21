@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 8080);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -540,70 +540,76 @@ Zwróć JSON:
   }
 });
 
-// 8. Lyria audio generation check & generation endpoint (if Lyria model is enabled)
+// 8. Lyria audio generation via Gemini API
 app.post("/api/lyria-generate", async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, mode = "clip" } = req.body ?? {};
     const ai = getGeminiClient();
 
     if (!ai) {
       return res.status(503).json({
-        error: "Brak klucza API. Provider audio wymaga skonfigurowanego klucza.",
-        status: "WYMAGA KONFIGURACJI",
+        status: "WYMAGA_KONFIGURACJI",
+        error: "Brak GEMINI_API_KEY na serwerze.",
       });
     }
 
-    // Attempt Lyria generation using streaming
+    const cleanPrompt =
+      typeof prompt === "string" && prompt.trim()
+        ? prompt.trim()
+        : "Atmospheric emotional instrumental with deep bass and ambient pads";
+
+    const model = mode === "full" ? "lyria-3.5" : "lyria-3-clip-preview";
+
     try {
-      const response = await ai.models.generateContentStream({
-        model: "lyria-3-clip-preview",
-        contents: prompt || "Atmospheric emotional instrumental with deep bass and ambient pads",
+      const response = await ai.models.generateContent({
+        model,
+        contents: cleanPrompt,
       });
 
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
       let audioBase64 = "";
-      let lyrics = "";
-      let mimeType = "audio/wav";
+      const textParts: string[] = [];
+      let mimeType = "audio/mpeg";
 
-      for await (const chunk of response) {
-        const parts = chunk.candidates?.[0]?.content?.parts;
-        if (!parts) continue;
-        for (const part of parts) {
-          if (part.inlineData?.data) {
-            if (!audioBase64 && part.inlineData.mimeType) {
-              mimeType = part.inlineData.mimeType;
-            }
-            audioBase64 += part.inlineData.data;
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          audioBase64 = part.inlineData.data;
+          if (part.inlineData.mimeType) {
+            mimeType = part.inlineData.mimeType;
           }
-          if (part.text && !lyrics) {
-            lyrics = part.text;
-          }
+        }
+        if (part.text) {
+          textParts.push(part.text);
         }
       }
 
-      if (audioBase64) {
-        return res.json({
-          status: "DZIAŁA",
-          audioBase64,
-          mimeType,
-          lyrics,
-        });
-      } else {
+      if (!audioBase64) {
         return res.status(422).json({
-          status: "WYMAGA MODELU AUDIO",
-          message: "Model Lyria zwrócił odpowiedź tekstową bez danych audio. Skonfiguruj model Lyria lub użyj wbudowanego syntezatora Web Audio.",
-          textResponse: lyrics,
+          status: "BRAK_AUDIO",
+          model,
+          message: "Lyria nie zwróciła danych audio.",
+          text: textParts.join("\n"),
         });
       }
+
+      return res.json({
+        status: "DZIAŁA",
+        model,
+        audioBase64,
+        mimeType,
+        text: textParts.join("\n"),
+      });
     } catch (modelError: any) {
-      console.warn("Lyria direct call note:", modelError?.message);
-      return res.status(422).json({
-        status: "WYMAGA MODELU AUDIO",
-        message: `Model generowania dźwięku Lyria wymaga uprawnień lub płatnego klucza API: ${modelError?.message || "Niedostępny w tym regionie"}`,
-        details: modelError?.message,
+      console.error("Lyria API error:", modelError);
+      return res.status(502).json({
+        status: "BŁĄD_LYRIA_API",
+        model,
+        error: modelError?.message || "Błąd wywołania Lyria API.",
       });
     }
   } catch (error: any) {
-    res.status(500).json({
+    console.error("Lyria endpoint error:", error);
+    return res.status(500).json({
       status: "BŁĄD",
       error: error?.message || "Błąd serwera audio.",
     });
